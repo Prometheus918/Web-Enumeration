@@ -15,20 +15,17 @@ echo ""
 echo "Installing Eyewitness"
 	sudo apt-get install eyewitness
 	echo ""
-
+	
+echo "Installing Feroxbuster"	
+	sudo apt install feroxbuster
+	echo ""
+	
 echo "Installing Mass Scan"
 	sudo apt-get install masscan
 	echo ""
 
-echo "Installing Amass"
-	sudo apt install snapd
-	sudo systemctl start snapd
-	sudo systemctl enable snapd
-	sudo systemctl start apparmor
-	sudo systemctl enable apparmor
-	export PATH=$PATH:/snap/bin
-	sudo snap refresh
-	sudo snap install amass
+echo "Installing sublist3r"	
+	sudo apt install sublist3r
 	echo ""
 
 echo "Dependencies up to date"
@@ -55,29 +52,36 @@ echo "Creating Directory $name to Store Results."
 	echo ""
 
 #Subdomain Scrapping
-echo "Running Amass to obtain $name subdomains"
-amass -d $name > amass.txt 
-
+echo "Running sublist3r to obtain $name subdomains"
+sublist3r -d $name -v -t 5 -o /$path/$name/domains.txt  
+#sed 's/^/https:\/\//' domains.txt > new_domains.txt
 echo ""
 echo ""
 
+#Ferox to enumerate sub-directories and unique subdomains from js files
+'''
+echo "Running Feroxbuster to enumerate sub-directories"
+cat /$path/$name/new_domains.txt | feroxbuster --stdin --silent -s 200 301 302 --redirects -w /usr/share/wordlists/dirbuster/directory-list-1.0.txt -o /$path/$name/ferox_output.txt
+echo ""
+echo ""
+'''
 #Host command to get IPs of Subdomains
 echo "Running Host command to obtain IPs of $name"
-for ip in $(cat amass.txt);
+for ip in $(cat /$path/$name/domains.txt);
 		do host $ip;
-	done | grep "has address" | cut -d " " -f4 | sort -u > ip.txt
+	done | grep "has address" | cut -d " " -f4 | sort -u > /$path/$name/ip.txt
 
 #Port Scanning
 echo "Running Mass Scan On IPs"
 
-masscan -p1-65535 -iL ip.txt --rate=100000 > masscan.txt
+masscan -p1-65535 -iL ip.txt --rate=100000 > /$path/$name/masscan.txt
 
 #Visual Identification
 echo "Running Eyewitness to Grab Screenshots of Subdomains"
 
-eyewitness -f /$path/$name/amass.txt --web 
-
-rm amass.txt 
+eyewitness -f /$path/$name/domains.txt --web 
+ 
 echo "Enumeration Complete!"
 echo "Results Stored in $path/$name"
 done
+exit
